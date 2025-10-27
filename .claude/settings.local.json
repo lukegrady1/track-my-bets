@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm create:*)"
+      "Bash(npm create:*)",
+      "Bash(if [ ! -d \"node_modules\" ])",
+      "Bash(then ln -s ../node_modules node_modules)",
+      "Bash(fi)",
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(findstr:*)",
+      "Bash(.\\venv\\Scripts\\python:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(alembic revision:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(git add:*)",
+      "Bash(if [ ! -f backend/.gitignore ])",
+      "Bash(then echo \"Creating backend/.gitignore\")",
+      "Bash(test:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

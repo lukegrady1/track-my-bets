@@ -1,510 +1,333 @@
-claude.md — React Betting Tracker (web & mobile)
+# claude.md — Build a Full‑Stack Betting Tracker (React + FastAPI)
 
-Goal: Build a modern, responsive React application to track sports bets (wins/losses, PnL, units, ROI%), with authentication and either (a) read-only connections/imports from sportsbooks or (b) manual entry + CSV import. Ship a clean, mobile-first UI with fast interactions and reliable data persistence.
+> **Objective:** Implement a production‑ready betting tracker with a **React (Vite + TS)** frontend and a **Python FastAPI** backend. The app tracks bets (wins/losses), **PnL**, **units**, **ROI%**, supports **authentication**, manual bet entry and **CSV import**, with a modern responsive UI. Ship it deployable to Vercel (frontend) and Render/Fly/Railway (backend) with Postgres (Neon/Supabase).
 
-0) Deliverables
+---
 
-Production-ready web app (mobile + desktop) with authentication
+## 0) Deliverables
 
-Core CRUD for bets, bankroll, and books
+* **Frontend**: React app (Vite + TS + Tailwind + shadcn/ui) with auth screens, dashboard KPIs, bets CRUD, CSV import, settings.
+* **Backend**: FastAPI service with JWT auth, Postgres (SQLAlchemy + Alembic), REST endpoints for bets, analytics, import.
+* **Database**: Postgres schema + Alembic migrations.
+* **E2E**: Working flows → sign up/in, add/settle a bet, see KPIs update.
+* **DX**: OpenAPI → TypeScript client types; `.env.example`; npm/pip scripts.
+* **CI (nice‑to‑have)**: Lint/test on PR; deploy preview.
 
-Analytics: units up/down, PnL, ROI%, hit rate, average odds, CLV, bankroll curve
+---
 
-CSV import/export
+## 1) Architecture & Stack
 
-Optional “connections” via CSV/email-parsing gateway for supported books (fallback to manual)
+* **Frontend**: React (Vite + TypeScript), TailwindCSS, shadcn/ui, Lucide icons, TanStack Query, Zod, Recharts, Framer Motion.
+* **Backend**: FastAPI, Pydantic, SQLAlchemy 2.x, Alembic, python‑jose (JWT), passlib (password hashing).
+* **DB**: Postgres (Neon/Supabase/Render Postgres).
+* **Auth**: Email/password with **JWT** (httpOnly cookie or Bearer token). Include refresh token.
+* **Storage**: In‑API CSV import (multipart). (Optional S3 later.)
+* **Hosting**: Vercel (FE) + Render/Fly/Railway (BE).
+* **Observability (opt.)**: Sentry/PostHog.
 
-Deployed to Vercel (or Netlify) with a managed Postgres (Supabase)
+### Folder Layout
 
-Test coverage for critical flows (auth, add bet, compute metrics)
-
-1) Tech Stack
-
-Frontend: React + Vite + TypeScript
-
-UI: Tailwind CSS + shadcn/ui + Lucide icons
-
-State & data: TanStack Query (server cache) + Zod for schema validation
-
-Auth & DB: Supabase (Auth + Postgres + RLS)
-
-APIs: Supabase Edge Functions (Deno) for CSV/email parsing & sportsbook import adapters
-
-Charts: Recharts
-
-Testing: Vitest + React Testing Library + Playwright (smoke E2E)
-
-Deployment: Vercel (frontend) + Supabase (backend)
-
-Analytics/Logging: PostHog (optional), Sentry (optional)
-
-Rationale: Fast DX, first-class auth, SQL for analytics, easy RLS, and a fully serverless deployment path.
-
-2) Core Features & Requirements
-2.1 Authentication & Accounts
-
-Email/password and OAuth (Google, Apple) via Supabase Auth.
-
-Magic link optional.
-
-Post-signup onboarding to set base unit size (e.g., $50) and default sportsbook.
-
-RLS policies to isolate user data: user_id = auth.uid() on all user-owned tables.
-
-2.2 Bet Entry (Manual)
-
-Fields (all validated):
-
-bet_name (string)
-
-sport (enum: NFL/NBA/MLB/NHL/NCAAF/NCAAB/Soccer/MMA/Other)
-
-league (string, optional)
-
-market_type (enum: ML, Spread, Total, Prop, Parlay, Future, Other)
-
-team_or_player (string)
-
-odds (American; store canonical decimal as well)
-
-stake (number, currency)
-
-units (computed: stake / settings.base_unit; allow override)
-
-book (FK to sportsbooks table)
-
-status (enum: Pending, Won, Lost, Push, Void, Cashout)
-
-result_amount (derived: see §3 formulas; persisted after settlement)
-
-event_date (datetime, timezone aware)
-
-placed_at (datetime)
-
-notes (text)
-
-tags (array; relation via join table)
-
-parlay_group_id (nullable, to group legs)
-
-2.3 Imports / “Connections”
-
-CSV import (MVP): Map headers from DraftKings/FD/MGM CSV to internal schema. Preview mapping UI, dry-run validation, then commit.
-
-Email parse (optional): Edge Function with provider-specific parsers for confirmation emails (Gmail API user token required). Store sanitized payload.
-
-API adapters (future): If/when official read APIs exist, add OAuth adapters. For now, explicitly do not scrape.
-
-2.4 Analytics Dashboard
-
-Cards + charts:
-
-Total PnL ($)
-
-Units up/down
-
-ROI %
-
-Hit rate %
-
-Average odds (American & implied %)
-
-Closing Line Value (CLV) avg (optional field on bet: closing_odds)
-
-Bankroll over time (line chart; includes deposits/withdrawals via bankroll_snapshots)
-
-Performance by book / sport / market / tag (bar charts + tables)
-
-Recent bets (timeline)
-
-2.5 Filtering & Search
-
-Multi-filter by date range, sport, book, market, status, tags.
-
-Quick search by team/player.
-
-2.6 Settings & Bankroll
-
-Set base unit (required)
-
-Set default book, default stake (optional)
-
-Manage bankroll_snapshots (manual add; also auto-update on won/lost if configured)
-
-Currency: USD only (MVP), prepare for i18n later.
-
-2.7 Export/Share
-
-Export CSV (filtered or all)
-
-Copy/share summary (PnL, ROI, units) for given range
-
-2.8 Accessibility & Responsiveness
-
-Mobile-first, keyboard nav, aria labels, color-contrast compliant, prefers-reduced-motion aware.
-
-3) Calculations (Authoritative)
-
-Decimal odds from American odds A:
-
-If A > 0: decimal = 1 + (A / 100)
-
-If A < 0: decimal = 1 + (100 / |A|)
-
-Implied probability: 1 / decimal
-
-Profit for a single bet:
-
-If Won: profit = stake * (decimal - 1)
-
-If Lost: profit = -stake
-
-If Push/Void: profit = 0
-
-If Cashout: profit = cashout_amount - stake (requires field)
-
-Units: units = stake / base_unit
-
-Total PnL: Σ profit
-
-Total Staked: Σ stake (for settled bets, exclude void?)
-
-ROI %: (Total PnL / Total Staked) * 100
-
-Hit rate %: wins / (wins + losses) (exclude push/void)
-
-Parlay: either store as a single bet with combined odds, or legs + group id. If legs, compute parlay decimal = product(legs.decimal), payout based on total stake.
-
-Ensure all computed values are re-derived on the fly in queries and cached.
-
-4) Information Architecture & Routes
-
-/ → Dashboard (KPIs, charts, recent bets)
-
-/bets → Table w/ filters; bulk edit; csv import/export
-
-/bets/new → Create bet form (wizard for parlay)
-
-/bets/:id → Detail view (edit, settle, add closing odds)
-
-/bankroll → Bankroll snapshots & chart
-
-/settings → Profile, base unit, default book, API/CSV connections, danger zone (delete account)
-
-/auth/* → Sign in / Sign up / Reset
-
-5) Database Schema (Supabase SQL)
--- users are in auth schema; use a public profile table if needed
-create table if not exists public.user_settings (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  base_unit numeric not null check (base_unit > 0),
-  default_book_id uuid null,
-  created_at timestamp with time zone default now(),
-  updated_at timestamp with time zone default now()
-);
-
-
-create table if not exists public.sportsbooks (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid null references auth.users(id) on delete cascade, -- allow global (null) and user custom
-  name text not null,
-  created_at timestamptz default now()
-);
-
-
-create table if not exists public.bets (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  bet_name text not null,
-  sport text not null,
-  league text,
-  market_type text not null,
-  team_or_player text,
-  odds_american int not null,
-  odds_decimal numeric generated always as (
-    case when odds_american > 0 then 1 + (odds_american::numeric / 100)
-         when odds_american < 0 then 1 + (100 / abs(odds_american::numeric))
-         else null end
-  ) stored,
-  implied_prob numeric generated always as (1 / odds_decimal) stored,
-  stake numeric not null check (stake >= 0),
-  units numeric not null,
-  status text not null check (status in ('Pending','Won','Lost','Push','Void','Cashout')),
-  result_profit numeric null, -- set when settled
-  cashout_amount numeric null,
-  book_id uuid references public.sportsbooks(id),
-  event_date timestamptz,
-  placed_at timestamptz default now(),
-  closing_odds_american int null,
-  notes text,
-  parlay_group_id uuid null,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-
-create table if not exists public.bet_tags (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null
-);
-
-
-create table if not exists public.bet_tag_joins (
-  bet_id uuid references public.bets(id) on delete cascade,
-  tag_id uuid references public.bet_tags(id) on delete cascade,
-  primary key (bet_id, tag_id)
-);
-6) API Surface (Supabase + Edge Functions)
-
-Client uses Supabase JS for CRUD; Edge Functions for heavy lifting.
-
-Tables (RPC-like patterns)
-
-Insert bet: validate with Zod, compute units, default status = Pending.
-
-Settle bet: update status + result_profit (use §3 formulas). Option to auto-create bankroll snapshot.
-
-CSV import: upload to Supabase Storage → Edge Function parses and upserts bets.
-
-Edge Functions
-
-import/csv-parse: Accept CSV, detect provider, map headers, return preview & errors, commit on confirm.
-
-connections/email-webhook (optional): Parse bet confirmations (provider-specific); store sanitized result.
-
-7) UI/UX Spec
-Components (shadcn/ui)
-
-NavBar (avatar, range picker, Add Bet)
-
-KPI Cards (PnL, Units, ROI, Hit Rate)
-
-BetTable (virtualized, sticky actions)
-
-BetForm (wizard for Parlay)
-
-FiltersBar (multi-selects, search)
-
-BankrollChart (Recharts line)
-
-BreakdownCharts (by sport/book/market)
-
-ImportModal (CSV mapping preview)
-
-Toast/Dialogs for errors/confirmations
-
-Design
-
-Clean, minimal, plenty of white space
-
-12–14px on small, 16px+ body on desktop; xl headings
-
-Motion via Framer Motion (reduced for prefers-reduced-motion)
-
-Dark mode ready (MVP: light)
-
-Responsive Behavior
-
-Mobile: single-column dashboard, condensed table cards
-
-Desktop: 2–3 column grid, full table with pinned filters
-
-8) Pages & Acceptance Criteria
-Dashboard
-
-Shows KPIs for selected date range; numbers match SQL aggregation
-
-Bankroll chart renders for last 90 days by default
-
-Bets List
-
-Filter & search working; pagination/virtualization OK
-
-Inline edit status; bulk settle; export filtered CSV
-
-Add/Edit Bet
-
-Client-side validation; computed fields preview (units, implied prob)
-
-Parlay wizard supports 2–10 legs; shows combined odds and payout
-
-Settings
-
-Base unit update persists and re-computes display units
-
-Manage books; add custom book names
-
-CSV import with preview and mapping
-
-9) Implementation Steps
-
-Scaffold Vite + TS + Tailwind + shadcn/ui; install Supabase, TanStack Query, Zod, Recharts, Framer Motion.
-
-Auth: Supabase Auth UI or custom forms; protect routes.
-
-DB: Apply schema + RLS; seed global sportsbooks (DraftKings, FanDuel, BetMGM, etc.).
-
-Settings: Onboarding for base unit; settings page.
-
-Bets CRUD: Form + list + detail; settlement logic + derived fields.
-
-Analytics: Aggregation queries + KPI cards; bankroll & breakdown charts.
-
-CSV Import: Storage upload → Edge Function parse → preview → upsert.
-
-Testing: Unit tests for formulas; component tests for form/list; E2E smoke (auth + add bet + KPI updates).
-
-Polish: Animations, a11y, empty states, error toasts.
-
-Deploy: Vercel + env vars; Supabase project; DNS if custom domain.
-
-10) Environment Variables (.env example)
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-# Optional
-VITE_POSTHOG_KEY=...
-VITE_SENTRY_DSN=...
-11) Sample Types & Utility
-// odds.ts
-export function americanToDecimal(a: number): number {
-  return a > 0 ? 1 + a / 100 : 1 + 100 / Math.abs(a);
-}
-export function impliedProbFromAmerican(a: number): number {
-  return 1 / americanToDecimal(a);
-}
-export function profit(oddsAmerican: number, stake: number, status: 'Won'|'Lost'|'Push'|'Void'|'Cashout', cashoutAmount?: number) {
-  const dec = americanToDecimal(oddsAmerican);
-  if (status === 'Won') return stake * (dec - 1);
-  if (status === 'Lost') return -stake;
-  if (status === 'Push' || status === 'Void') return 0;
-  if (status === 'Cashout') return (cashoutAmount ?? 0) - stake;
-  return 0;
-}
-12) Example CSV Mapping
-
-Input (DraftKings-like)
-
-Event,Market,Selection,Odds,Stake,ToWin,Placed,Result
-BUF vs MIA,Moneyline,Bills,-125,125,100,2025-10-01 13:22,Won
-
-Mapped
-
-bet_name: Bills ML vs MIA
-market_type: ML
-team_or_player: Bills
-odds_american: -125
-stake: 125
-status: Won
-placed_at: 2025-10-01T13:22:00Z
-13) Testing Matrix
-
-Auth: sign up/in/out, protected routes redirect
-
-Add bet: valid/invalid odds, negative stake blocked
-
-Settle bet: statuses compute correct result_profit
-
-KPIs: ROI, units, PnL accuracy with fixture dataset
-
-CSV: bad headers/error rows surfaced; dry-run vs commit
-
-RLS: user A cannot read user B rows
-
-A11y: tab order, aria labels, color contrast
-
-14) Security & Privacy
-
-RLS on all tables; no public buckets for PII
-
-Input validation with Zod on client and server (Edge Functions)
-
-Rate-limit Edge Functions; log suspicious activity
-
-Avoid storing email bodies; if parsing, only persist normalized bet info
-
-15) Nice-to-haves (Post-MVP)
-
-Kelly / staking strategy helper
-
-CLV auto-calc (via odds API for closing numbers)
-
-Futures tracker (hold period, partial cashouts)
-
-Live hedging planner (link bets as “hedge-of”)
-
-Widgets: “Last 7/30 days” share card
-
-iOS/Android wrapper via Capacitor
-
-16) Acceptance Checklist
-
-
-
-
-17) Developer Notes for Claude
-
-Prefer functional components, hooks, and composition; no heavy global state
-
-Encapsulate Supabase queries in /lib/db with typed helpers
-
-Use Zod schemas in both form validation and server parsing
-
-Keep colors/tokens in Tailwind config; use shadcn primitives for consistency
-
-Write utility unit tests early (odds, profit, ROI)
-
-18) Project Structure
+```
 track-my-bets/
-  src/
-    components/
-      kpis/
-      bets/
-      charts/
-      ui/ (shadcn)
-    pages/
-      dashboard/
-      bets/
-      settings/
-      auth/
-    lib/
-      supabase.ts
-      odds.ts
-      queries.ts
-    features/
-      import/
-      bankroll/
-    styles/
-    app.tsx
-    main.tsx
-  supabase/
-    schema.sql
-    functions/
-      import-csv/index.ts
-  tests/
-    unit/
-    e2e/
+  frontend/
+    src/
+      components/
+      pages/
+      lib/
+      styles/
+    index.html
+    vite.config.ts
+  backend/
+    app/
+      api/v1/
+        auth.py
+        bets.py
+        analytics.py
+        imports.py
+      core/
+        config.py
+        security.py
+      db/
+        base.py
+        session.py
+        models.py
+        crud.py
+      schemas.py
+      main.py
+    alembic/
+      versions/
+    alembic.ini
+  docker-compose.yml (opt.)
+  README.md
   .env.example
-19) Deployment Steps (Vercel + Supabase)
+```
 
-Create Supabase project → run schema.sql → enable RLS & policies.
+---
 
-Set Auth providers (Google/Apple) if desired.
+## 2) Data Model & Calculations
 
-Create Storage bucket imports (private).
+**Core entity: `Bet`**
 
-Deploy Edge Function import-csv with required permissions.
+* Fields: `id, user_id, bet_name, sport, league?, market_type, team_or_player?, odds_american, stake, units, status, result_profit?, book?, event_date?, placed_at, created_at`.
+* **Units** = `stake / base_unit` (from user settings).
+* Decimal odds: `a>0 ? 1 + a/100 : 1 + 100/|a|`.
+* Profit: Won=`stake*(decimal-1)`; Lost=`-stake`; Push/Void=`0`; Cashout=`cashout_amount - stake`.
+* ROI% = `total_pnl / total_staked * 100` (staked = Won+Lost only). Hit Rate% = `wins/(wins+losses)*100`.
 
-Vercel: import Git repo → set env VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY.
+**UserSettings**: `user_id (pk), base_unit, default_book?`.
 
-Configure domain, redirects, and caching headers.
+**Optional**: `Sportsbook`, `ParlayLeg`, `BankrollSnapshot`, `Tag` with join table.
 
-20) Copy Blocks (UI)
+---
 
-Empty state: “No bets yet. Add your first bet or import a CSV.”
+## 3) Backend — FastAPI Implementation
 
-Import help: “We don’t scrape sportsbooks. Use CSV exports or email confirmations where supported.”
+### 3.1 Environment & Config
 
-Disclaimer: “For personal record-keeping only. Not financial advice.”
+* Use `pydantic-settings` for config. Expected env:
 
-End of claude.md
+```
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/DB
+JWT_SECRET=change_me
+JWT_ALGO=HS256
+JWT_ACCESS_EXPIRE_MIN=30
+JWT_REFRESH_EXPIRE_MIN=43200
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://<vercel-domain>
+```
+
+### 3.2 DB & Models (SQLAlchemy)
+
+Create `User`, `UserSettings`, `Bet`. Migration with Alembic (initial + seeds for common sportsbooks optional).
+
+### 3.3 Auth
+
+* Endpoints: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/me`.
+* Password hashing: `passlib[bcrypt]`.
+* Access token (short‑lived) + refresh token (longer). Prefer **httpOnly secure cookies**; allow Bearer for local dev.
+
+### 3.4 Bets API
+
+* `POST /bets` — create bet; compute `units` from user settings.
+* `GET /bets` — list with filters (date range, sport, status, book, text search).
+* `GET /bets/{id}` — detail.
+* `PATCH /bets/{id}` — update.
+* `DELETE /bets/{id}` — delete.
+* `POST /bets/{id}/settle` — set status + compute `result_profit`.
+
+### 3.5 Analytics API
+
+* `GET /analytics/kpis?from&to` → `{ pnl, units, roiPct, hitRate, avgOdds }`.
+* `GET /analytics/breakdown?dim=book|sport|market` → array of `{ key, pnl, roiPct, count }`.
+* `GET /analytics/bankroll?from&to` → time‑series of cumulative PnL or snapshots.
+
+### 3.6 Import API
+
+* `POST /imports/csv?provider=auto|dk|fd|mgm` (multipart upload) → preview mapping + commit flag. Validate rows; reject bad lines with errors list.
+
+### 3.7 Boilerplate Code (sketch)
+
+```python
+# app/main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.v1 import auth, bets, analytics, imports
+from app.core.config import settings
+from app.db.session import init_db
+
+app = FastAPI(title="Track My Bets API", version="1.0.0")
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=settings.CORS_ALLOWED_ORIGINS,
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
+
+@app.on_event("startup")
+async def startup():
+    await init_db()
+
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(bets.router, prefix="/api/v1/bets", tags=["bets"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+app.include_router(imports.router, prefix="/api/v1/imports", tags=["imports"])
+```
+
+```python
+# app/api/v1/bets.py (essential logic only)
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.db.session import get_db
+from app.core.security import current_user
+from app.db import models
+from app.schemas import BetCreate, BetOut
+
+router = APIRouter()
+
+def american_to_decimal(a:int)->float: return 1 + (a/100) if a>0 else 1 + 100/abs(a)
+
+@router.post("/", response_model=BetOut)
+def create_bet(body: BetCreate, db: Session = Depends(get_db), user=Depends(current_user)):
+    units = round(body.stake / user.settings.base_unit, 4)
+    bet = models.Bet(user_id=user.id, units=units, status="Pending", **body.dict())
+    db.add(bet); db.commit(); db.refresh(bet)
+    return bet
+```
+
+---
+
+## 4) Frontend — React Implementation
+
+### 4.1 Setup
+
+* Vite + React + TS + Tailwind
+* Install: `@tanstack/react-query`, `zod`, `react-hook-form`, `recharts`, `react-router-dom`, `axios`, `shadcn/ui`, `lucide-react`.
+* Configure Tailwind + shadcn. Global API base from `VITE_API_BASE`.
+
+### 4.2 Routes
+
+* `/auth/*` → Sign in / Sign up / Forgot.
+* `/` → Dashboard KPIs + charts.
+* `/bets` → Table/list with filters.
+* `/bets/new` → Create bet wizard (supports parlay later).
+* `/settings` → Base unit, default book, CSV import.
+
+### 4.3 Components
+
+* **KPI Cards**: PnL, Units, ROI%, Hit Rate.
+* **BankrollChart** (Recharts line).
+* **BetTable**: virtualized rows, inline status update.
+* **BetForm**: RHF + Zod; live preview of implied probability, units.
+* **ImportModal**: file input → preview rows → commit.
+
+### 4.4 API Client
+
+* Axios with interceptor to include JWT (cookie) or Bearer.
+* Hooks with TanStack Query: `useKPIs(params)`, `useBets(filters)`, `useCreateBet()`, etc.
+
+### 4.5 UX/Design
+
+* Mobile‑first, keyboard navigable; a11y labels.
+* Light theme MVP; respect `prefers-reduced-motion`.
+
+---
+
+## 5) Type Contracts & Codegen
+
+* Expose OpenAPI from FastAPI at `/openapi.json`.
+* Generate TS types: `npx openapi-typescript http://localhost:8000/openapi.json -o frontend/src/lib/api-types.ts`.
+* Optional: generate API client or keep lightweight fetch/axios wrappers.
+
+---
+
+## 6) CSV Import Mapping
+
+* Support **DraftKings** + **FanDuel** CSVs initially.
+* Auto‑detect provider by header signature; fallback to mapping UI.
+* Validate: odds integer, stake > 0, status in set, timestamps parseable.
+* Dry‑run endpoint returns arrays: `validRows[]`, `invalidRows[] {line, error}`.
+* Commit endpoint upserts `Bet` rows for valid entries only.
+
+---
+
+## 7) Testing
+
+* **Backend**: Pytest for auth, bet creation, settlement math, KPIs. Use a transactional test DB.
+* **Frontend**: Vitest + Testing Library for forms and KPI rendering. Playwright smoke test: login → add bet → see KPI change.
+
+---
+
+## 8) Security & Ops
+
+* CORS restricted to known origins.
+* Store JWT in **httpOnly Secure SameSite=Lax cookies** in production.
+* Rate‑limit auth & import endpoints (e.g., `slowapi`).
+* Validate all payloads with Pydantic & Zod.
+* Alembic migrations for all schema changes.
+
+---
+
+## 9) Environment & Scripts
+
+**Frontend** `.env.example`
+
+```
+VITE_API_BASE=http://localhost:8000
+```
+
+**Backend** `.env.example` (see §3.1) and `scripts`:
+
+```
+# backend
+uvicorn app.main:app --reload
+alembic init alembic
+alembic revision --autogenerate -m "init"
+alembic upgrade head
+pytest -q
+```
+
+---
+
+## 10) Deployment
+
+* **Backend**: Render/Fly/Railway. Set env vars, run migrations on release, expose `https://api.<domain>`.
+* **Frontend**: Vercel → set `VITE_API_BASE` to backend URL. Configure CORS accordingly.
+* **Domain**: `app.trackmybets.xyz` (example). Redirect `www` to apex.
+
+---
+
+## 11) Acceptance Criteria
+
+* [ ] User can register/login; JWT stored in cookie; `/auth/me` returns profile & settings.
+* [ ] User sets **base unit**; new bets show computed **units**.
+* [ ] Add bet (validations), edit, delete, **settle**; profit math matches spec.
+* [ ] Dashboard shows **PnL, Units, ROI%, Hit Rate** for date range; values match DB aggregation.
+* [ ] CSV import for DK/FD works with preview + row‑level errors.
+* [ ] Mobile layout renders cleanly (Lighthouse Perf & A11y ≥ 90 on mobile).
+* [ ] Deployed FE+BE with environment docs.
+
+---
+
+## 12) Stretch Goals (Post‑MVP)
+
+* Parlay legs & combined odds; futures support.
+* CLV tracking (add `closing_odds_american`) + external odds API.
+* Bankroll snapshots and equity curve.
+* Shareable summary cards (image export).
+* OAuth social login.
+* iOS/Android wrapper via Capacitor.
+
+---
+
+## 13) Helpful Snippets
+
+**Odds/Profit (shared logic reference)**
+
+```py
+def american_to_decimal(a:int)->float:
+    return 1 + a/100 if a>0 else 1 + 100/abs(a)
+
+def profit(odds_a:int, stake:float, status:str, cashout_amount:float|None=None)->float:
+    dec = american_to_decimal(odds_a)
+    if status=="Won": return stake*(dec-1)
+    if status=="Lost": return -stake
+    if status in ("Push","Void"): return 0.0
+    if status=="Cashout": return (cashout_amount or 0)-stake
+    return 0.0
+```
+
+**React query example**
+
+```ts
+// frontend/src/lib/api.ts
+import axios from "axios";
+export const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE, withCredentials: true });
+export async function fetchKPIs(params?: {from?:string; to?:string}) {
+  const { data } = await api.get("/api/v1/analytics/kpis", { params });
+  return data as { pnl:number; units:number; roiPct:number; hitRate:number; avgOdds:number };
+}
+```
+
+---
+
+**End of claude.md**
