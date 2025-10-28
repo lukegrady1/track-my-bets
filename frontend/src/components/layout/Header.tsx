@@ -11,6 +11,7 @@ export default function Header() {
   const navLinks = [
     { path: '/', label: 'Dashboard' },
     { path: '/bets', label: 'Bets' },
+    { path: '/schedule', label: 'Schedule' },
     { path: '/bankroll', label: 'Bankroll' },
     { path: '/settings', label: 'Settings' },
   ];

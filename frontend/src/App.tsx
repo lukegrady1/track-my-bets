@@ -10,6 +10,7 @@ import BetForm from './pages/bets/BetForm';
 import BetDetail from './pages/bets/BetDetail';
 import Settings from './pages/settings/Settings';
 import Bankroll from './pages/dashboard/Bankroll';
+import SchedulePage from './pages/schedule/SchedulePage';
 import SignIn from './pages/auth/SignIn';
 import SignUp from './pages/auth/SignUp';
 import ResetPassword from './pages/auth/ResetPassword';
@@ -115,6 +116,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/schedule"
+          element={
+            <ProtectedRoute>
+              <SchedulePage />
             </ProtectedRoute>
           }
         />

@@ -29,5 +29,16 @@ dist-ssr
 .env.*.local
 venv
 
+schedule.md
+API-REFERENCE.md
+CHECKLIST.md
+claude.md
+DEV-GUIDE.md
+DEVELOPMENT.md
+ERRORS-FIXED.md
+HEADER-UPDATE.md
+IMPLEMENTATION-SUMMARY.md
+MIGRATION-GUIDE.md
+SUPABASE-SETUP.md
 # Test coverage
 coverage
