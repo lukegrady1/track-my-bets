@@ -1,130 +1,254 @@
 # Track My Bets
 
-A modern, responsive React application for tracking sports bets with comprehensive analytics, bankroll management, and data visualization.
+A modern, full-stack sports betting tracker with comprehensive analytics, bankroll management, and NFL schedule integration. Built with React + FastAPI.
 
 ## Features
 
-- **Authentication**: Secure email/password authentication with Supabase Auth
-- **Bet Tracking**: Manual bet entry with full validation
-- **Analytics Dashboard**: Real-time KPIs including P&L, ROI, hit rate, and more
-- **Bankroll Management**: Track your bankroll over time
-- **CSV Import/Export**: Import bets from sportsbooks or export your data
-- **Mobile-First Design**: Fully responsive UI built with Tailwind CSS
-- **Accessibility**: ARIA labels, keyboard navigation, and high contrast support
+- **JWT Authentication**: Secure email/password authentication with access & refresh tokens
+- **Bet Tracking**: Manual bet entry with full validation and settlement tracking
+- **Analytics Dashboard**: Real-time KPIs including P&L, ROI, hit rate, units, and more
+- **NFL Schedule**: Live NFL game schedule with scores, integrated with ESPN API
+- **Bankroll Management**: Track your bankroll over time with visual charts
+- **CSV Import/Export**: Import bets from sportsbooks (DraftKings, FanDuel, etc.)
+- **Mobile-First Design**: Fully responsive UI built with Tailwind CSS + shadcn/ui
+- **OpenAPI Documentation**: Auto-generated API docs at `/docs`
 
 ## Tech Stack
 
-- **Frontend**: React 18 + TypeScript + Vite
+### Frontend
+- **Framework**: React 18 + TypeScript + Vite
 - **UI**: Tailwind CSS + shadcn/ui components
 - **State Management**: TanStack Query for server state
 - **Validation**: Zod schemas
-- **Backend**: Supabase (Auth + PostgreSQL + RLS)
 - **Charts**: Recharts
 - **Testing**: Vitest + React Testing Library
+
+### Backend
+- **Framework**: FastAPI (Python)
+- **Database**: PostgreSQL with SQLAlchemy 2.x ORM
+- **Migrations**: Alembic
+- **Authentication**: JWT with python-jose
+- **Password Hashing**: passlib + bcrypt
+- **Validation**: Pydantic v2
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 20.x or higher
-- npm or yarn
-- Supabase account
+- **Node.js** 20.x or higher
+- **Python** 3.11 or higher
+- **PostgreSQL** 14 or higher (local or hosted on Neon/Supabase/Render)
+- **npm** or **yarn**
 
 ### Installation
 
-1. Clone the repository:
+#### 1. Clone the repository
+
 ```bash
 git clone <your-repo-url>
 cd track-my-bets
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+#### 2. Backend Setup
 
-3. Set up your Supabase project:
-   - Create a new project at [supabase.com](https://supabase.com)
-   - Copy your project URL and anon key
-   - Run the SQL script from `supabase/schema.sql` in the Supabase SQL Editor
-
-4. Create a `.env` file (copy from `.env.example`):
 ```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file from example
 cp .env.example .env
 ```
 
-5. Add your Supabase credentials to `.env`:
+#### 3. Configure Backend Environment
+
+Edit `backend/.env` with your settings:
+
 ```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/DB
+JWT_SECRET=your_secret_key_change_me
+JWT_ALGO=HS256
+JWT_ACCESS_EXPIRE_MIN=30
+JWT_REFRESH_EXPIRE_MIN=43200
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://your-vercel-domain.vercel.app
 ```
 
-6. Start the development server:
+#### 4. Initialize Database
+
+```bash
+# Run Alembic migrations
+alembic upgrade head
+
+# Seed common sportsbooks
+python seed_sportsbooks.py
+```
+
+#### 5. Start Backend Server
+
+```bash
+# From backend directory
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend will be available at:
+- **API**: http://localhost:8000
+- **OpenAPI Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+
+#### 6. Frontend Setup
+
+In a new terminal:
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create .env file from example
+cp .env.example .env
+```
+
+#### 7. Configure Frontend Environment
+
+Edit `frontend/.env`:
+
+```env
+VITE_API_BASE=http://localhost:8000
+```
+
+#### 8. Start Frontend Dev Server
+
 ```bash
 npm run dev
 ```
 
-7. Open [http://localhost:5173](http://localhost:5173) in your browser
+Frontend will be available at http://localhost:5173
 
-## Database Setup
+## Quick Start Scripts
 
-The database schema includes:
-- **user_settings**: User preferences and base unit configuration
-- **sportsbooks**: Global and custom sportsbook listings
-- **bets**: Complete bet records with calculated fields
-- **bet_tags**: Custom tags for organizing bets
-- **bankroll_snapshots**: Historical bankroll tracking
+Use the provided convenience scripts to start both servers:
 
-All tables include Row Level Security (RLS) policies to ensure data isolation.
+**Windows:**
+```bash
+.\run.bat
+```
+
+**Mac/Linux:**
+```bash
+chmod +x run.sh
+./run.sh
+```
 
 ## Project Structure
 
 ```
 track-my-bets/
-├── src/
-│   ├── components/        # Reusable UI components
-│   │   ├── ui/           # shadcn/ui components
-│   │   ├── kpis/         # KPI cards and metrics
-│   │   ├── bets/         # Bet-related components
-│   │   └── charts/       # Data visualization
-│   ├── pages/            # Page components
-│   │   ├── auth/         # Authentication pages
-│   │   ├── dashboard/    # Dashboard and bankroll
-│   │   ├── bets/         # Bet list, form, detail
-│   │   └── settings/     # Settings page
-│   ├── lib/              # Utilities and core logic
-│   │   ├── supabase.ts   # Supabase client
-│   │   ├── odds.ts       # Odds calculations
-│   │   ├── queries.ts    # Database queries
-│   │   ├── schemas.ts    # Zod validation schemas
-│   │   └── utils.ts      # Helper functions
-│   ├── features/         # Feature-specific code
-│   │   ├── import/       # CSV import
-│   │   └── bankroll/     # Bankroll management
-│   ├── styles/           # Global styles
-│   └── tests/            # Test files
-├── supabase/
-│   ├── schema.sql        # Database schema
-│   └── functions/        # Edge functions
-└── public/               # Static assets
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/          # API endpoints
+│   │   │   ├── auth.py      # Authentication
+│   │   │   ├── bets.py      # Bet CRUD
+│   │   │   ├── analytics.py # KPIs and stats
+│   │   │   ├── sportsbooks.py # Sportsbooks
+│   │   │   ├── users.py     # User settings
+│   │   │   └── imports.py   # CSV import
+│   │   ├── core/            # Core configuration
+│   │   │   ├── config.py    # Settings
+│   │   │   └── security.py  # JWT & password hashing
+│   │   ├── db/              # Database layer
+│   │   │   ├── models.py    # SQLAlchemy models
+│   │   │   ├── session.py   # DB session
+│   │   │   └── base.py      # Base classes
+│   │   ├── schemas.py       # Pydantic schemas
+│   │   └── main.py          # FastAPI app
+│   ├── alembic/             # Database migrations
+│   ├── requirements.txt
+│   └── seed_sportsbooks.py
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   │   ├── ui/         # shadcn/ui components
+│   │   │   └── layout/     # Header, Layout
+│   │   ├── pages/          # Page components
+│   │   │   ├── auth/       # Sign in, Sign up, Onboarding
+│   │   │   ├── dashboard/  # Dashboard & Bankroll
+│   │   │   ├── bets/       # Bet list, form, detail
+│   │   │   ├── schedule/   # NFL Schedule page
+│   │   │   └── settings/   # Settings
+│   │   ├── lib/            # Utilities
+│   │   │   ├── api.ts      # Axios client with interceptors
+│   │   │   ├── queries.ts  # TanStack Query hooks
+│   │   │   ├── espn.ts     # ESPN API integration
+│   │   │   ├── odds.ts     # Odds calculations
+│   │   │   ├── schemas.ts  # Zod validation
+│   │   │   └── utils.ts    # Helpers
+│   │   └── styles/         # Global CSS
+│   ├── package.json
+│   └── vite.config.ts
+├── run.bat                  # Windows startup script
+├── run.sh                   # Unix startup script
+├── SETUP.md                 # Detailed setup guide
+└── README.md
 ```
+
+## Database Schema
+
+The PostgreSQL database includes:
+
+- **users**: User accounts with hashed passwords
+- **user_settings**: User preferences (base unit, default sportsbook)
+- **sportsbooks**: Global and custom sportsbook listings
+- **bets**: Complete bet records with calculated profit/units
+- **Optional**: `bet_tags`, `bankroll_snapshots`, `parlay_legs`
+
+All managed through Alembic migrations.
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run test` - Run unit tests
-- `npm run test:e2e` - Run end-to-end tests
-- `npm run lint` - Lint code
+### Backend
+
+```bash
+# Start dev server with auto-reload
+uvicorn app.main:app --reload
+
+# Create new migration
+alembic revision --autogenerate -m "description"
+
+# Apply migrations
+alembic upgrade head
+
+# Run tests
+pytest
+```
+
+### Frontend
+
+```bash
+npm run dev       # Start dev server
+npm run build     # Build for production
+npm run preview   # Preview production build
+npm run test      # Run unit tests
+npm run lint      # Lint code
+```
 
 ## Key Concepts
 
 ### Odds Calculations
 
-The application uses American odds as the primary format and converts to decimal:
-- Positive odds (e.g., +150): `decimal = 1 + (odds / 100)`
-- Negative odds (e.g., -110): `decimal = 1 + (100 / |odds|)`
+American odds conversion to decimal:
+- **Positive odds** (e.g., +150): `decimal = 1 + (odds / 100)`
+- **Negative odds** (e.g., -110): `decimal = 1 + (100 / |odds|)`
 
 ### Profit Calculation
 
@@ -135,7 +259,7 @@ The application uses American odds as the primary format and converts to decimal
 
 ### Units
 
-Units are calculated as: `units = stake / base_unit`
+Calculated as: `units = stake / base_unit`
 
 Your base unit is configured during onboarding and can be updated in settings.
 
@@ -143,95 +267,159 @@ Your base unit is configured during onboarding and can be updated in settings.
 
 Return on Investment: `ROI = (Total P&L / Total Staked) * 100`
 
+Calculated only on Won/Lost bets (excludes Push/Void/Pending).
+
 ## Authentication Flow
 
-1. Sign up with email/password
-2. Complete onboarding (set base unit and default sportsbook)
-3. Access protected routes with authenticated session
-4. Session persists across page reloads
+1. **Sign up** with email/password → User record created with hashed password
+2. **Complete onboarding** → Set base unit & default sportsbook
+3. **Access protected routes** → JWT access token (30min) + refresh token (30 days)
+4. **Auto-refresh** → Frontend automatically refreshes expired access tokens
+5. **Session persistence** → Tokens stored in localStorage
 
-## Adding a Bet
+## NFL Schedule Feature
 
-1. Navigate to "Add Bet" from dashboard or bets page
-2. Fill in required fields:
-   - Bet name
-   - Sport and market type
-   - American odds
-   - Stake amount
-   - Sportsbook
-3. View calculated fields (units, implied probability)
-4. Submit to create the bet
+The app includes a live NFL schedule page that:
+- Fetches real-time game data from ESPN API
+- Shows all games for any regular season week (1-18)
+- Displays team logos, scores, kickoff times, networks, and venues
+- Highlights live games with animated indicators
+- Updates via URL query params (e.g., `/schedule?week=5`)
+- Fully responsive with mobile-first design
 
-## Settling Bets
+## API Endpoints
 
-1. Go to bet detail page
-2. Click appropriate status button (Won, Lost, Push, Void)
-3. Profit is automatically calculated and recorded
+### Authentication
+- `POST /api/v1/auth/register` - Create account
+- `POST /api/v1/auth/login` - Login and get tokens
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `GET /api/v1/auth/me` - Get current user
+- `POST /api/v1/auth/logout` - Logout
+
+### Bets
+- `GET /api/v1/bets` - List bets with filters
+- `POST /api/v1/bets` - Create bet
+- `GET /api/v1/bets/{id}` - Get bet detail
+- `PATCH /api/v1/bets/{id}` - Update bet
+- `DELETE /api/v1/bets/{id}` - Delete bet
+- `POST /api/v1/bets/{id}/settle` - Settle bet (Won/Lost/Push/Void)
+
+### Analytics
+- `GET /api/v1/analytics/kpis` - Get KPIs (P&L, ROI, Units, Hit Rate)
+- `GET /api/v1/analytics/breakdown` - Performance by sport/book/market
+- `GET /api/v1/analytics/bankroll` - Bankroll time-series
+
+### Sportsbooks
+- `GET /api/v1/sportsbooks` - List all sportsbooks
+- `POST /api/v1/sportsbooks` - Create custom sportsbook
+
+### User Settings
+- `GET /api/v1/users/{id}/settings` - Get user settings
+- `PUT /api/v1/users/{id}/settings` - Update settings
+
+### Import
+- `POST /api/v1/imports/csv` - Import CSV (DraftKings, FanDuel)
+
+Full interactive documentation at http://localhost:8000/docs
 
 ## Deployment
 
-### Vercel (Recommended)
+### Backend Deployment (Render/Fly/Railway)
 
-1. Push your code to GitHub
+1. Create a PostgreSQL database
+2. Set environment variables (see `backend/.env.example`)
+3. Deploy backend with build command: `pip install -r requirements.txt && alembic upgrade head`
+4. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+### Frontend Deployment (Vercel)
+
+1. Push code to GitHub
 2. Import repository in Vercel
-3. Add environment variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Deploy
+3. Set build settings:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. Add environment variable:
+   - `VITE_API_BASE=https://your-backend-url.com`
+5. Deploy
 
-### Other Platforms
+### CORS Configuration
 
-The app can be deployed to any static hosting platform that supports Vite:
-- Netlify
-- Cloudflare Pages
-- AWS Amplify
+Update `CORS_ALLOWED_ORIGINS` in backend `.env` to include your frontend domain:
+
+```env
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+```
 
 ## Security
 
-- All user data is protected by Row Level Security (RLS)
-- Authentication handled by Supabase Auth
-- Input validation on both client and server
-- No sensitive data in localStorage (sessions use httpOnly cookies)
+- **JWT Authentication**: Access + refresh tokens with secure rotation
+- **Password Hashing**: bcrypt with configurable rounds
+- **CORS Protection**: Restricted to allowed origins
+- **Input Validation**: Pydantic schemas on backend, Zod on frontend
+- **Rate Limiting**: (Recommended: add slowapi middleware)
+- **SQL Injection Protection**: SQLAlchemy ORM with parameterized queries
 
-## Disclaimer
+## Troubleshooting
 
-**For personal record-keeping only. Not financial advice.**
+### Backend won't start
+- Check PostgreSQL is running and DATABASE_URL is correct
+- Ensure Python 3.11+ and all dependencies installed
+- Run `alembic upgrade head` to apply migrations
 
-This application is designed to help you track and analyze your sports betting activity. It does not provide betting recommendations, odds, or any form of gambling advice.
+### Frontend can't connect to backend
+- Check `VITE_API_BASE` in `frontend/.env`
+- Ensure backend is running on port 8000
+- Check CORS settings in `backend/.env`
+
+### bcrypt errors
+- Ensure `bcrypt==4.0.1` (not 5.x) is installed
+- Reinstall: `pip install bcrypt==4.0.1`
 
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
+Contributions welcome! Please:
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
 MIT License - see LICENSE file for details
 
+## Disclaimer
+
+**For personal record-keeping only. Not financial advice.**
+
+This application is designed to help you track and analyze your sports betting activity. It does not provide betting recommendations, odds, or any form of gambling advice. Sports betting involves risk. Always gamble responsibly.
+
+## Roadmap
+
+- [x] JWT Authentication with refresh tokens
+- [x] Full CRUD for bets
+- [x] Analytics dashboard with KPIs
+- [x] NFL Schedule integration
+- [ ] CSV import with auto-detection
+- [ ] CLV tracking with closing odds API
+- [ ] Parlay bet wizard
+- [ ] Bankroll snapshots and equity curve
+- [ ] Advanced filtering (date range, tags, search)
+- [ ] Dark mode
+- [ ] Mobile app (Capacitor)
+- [ ] Email notifications
+- [ ] Kelly criterion calculator
+- [ ] Multi-currency support
+
 ## Support
 
 For issues or questions:
 - Open an issue on GitHub
-- Check the documentation in `claude.md`
-
-## Roadmap
-
-- [ ] CSV import with provider detection
-- [ ] Advanced filtering and search
-- [ ] Bankroll chart visualization
-- [ ] Performance breakdown by sport/book/market
-- [ ] CLV tracking with closing odds
-- [ ] Parlay bet wizard
-- [ ] Mobile app with Capacitor
-- [ ] Kelly criterion calculator
-- [ ] Dark mode
-- [ ] Email notifications
+- Check the detailed docs in [SETUP.md](SETUP.md)
+- Review the implementation guide in [claude.md](claude.md)
 
 ---
 
-Built with React, TypeScript, and Supabase
+Built with React, TypeScript, FastAPI, and PostgreSQL
