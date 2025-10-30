@@ -11,6 +11,8 @@ import BetDetail from './pages/bets/BetDetail';
 import Settings from './pages/settings/Settings';
 import Bankroll from './pages/dashboard/Bankroll';
 import SchedulePage from './pages/schedule/SchedulePage';
+import GroupsPage from './pages/groups/GroupsPage';
+import LeaderboardPage from './pages/groups/LeaderboardPage';
 import SignIn from './pages/auth/SignIn';
 import SignUp from './pages/auth/SignUp';
 import ResetPassword from './pages/auth/ResetPassword';
@@ -124,6 +126,22 @@ function App() {
           element={
             <ProtectedRoute>
               <SchedulePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/groups"
+          element={
+            <ProtectedRoute>
+              <GroupsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/groups/:groupId"
+          element={
+            <ProtectedRoute>
+              <LeaderboardPage />
             </ProtectedRoute>
           }
         />

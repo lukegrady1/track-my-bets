@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.session import init_db
-from app.api.v1 import auth, bets, analytics, imports, sportsbooks, users
+from app.api.v1 import auth, bets, analytics, imports, sportsbooks, users, groups, calendar
 
 # Create FastAPI application
 app = FastAPI(
@@ -51,3 +51,5 @@ app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytic
 app.include_router(imports.router, prefix="/api/v1/imports", tags=["imports"])
 app.include_router(sportsbooks.router, prefix="/api/v1/sportsbooks", tags=["sportsbooks"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(groups.router, prefix="/api/v1/groups", tags=["groups"])
+app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"])

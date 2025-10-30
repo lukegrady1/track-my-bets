@@ -12,6 +12,7 @@ export default function Header() {
     { path: '/', label: 'Dashboard' },
     { path: '/bets', label: 'Bets' },
     { path: '/schedule', label: 'Schedule' },
+    { path: '/groups', label: 'Groups' },
     { path: '/bankroll', label: 'Bankroll' },
     { path: '/settings', label: 'Settings' },
   ];

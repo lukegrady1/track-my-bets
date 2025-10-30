@@ -66,13 +66,15 @@ def get_kpis(
     pending_bets = len([b for b in all_bets if b.status == models.BetStatus.PENDING])
 
     return schemas.KPIData(
-        pnl=round(total_pnl, 2),
-        units=round(total_units, 2),
-        roi_pct=roi_pct,
-        hit_rate=hit_rate,
-        avg_odds=round(avg_odds_american, 0),
-        total_bets=total_bets,
-        pending_bets=pending_bets
+        totalPnL=round(total_pnl, 2),
+        totalUnits=round(total_units, 2),
+        roi=roi_pct,
+        hitRate=hit_rate,
+        avgOdds=round(avg_odds_american, 0),
+        totalBets=total_bets,
+        wonBets=wins,
+        lostBets=losses,
+        pendingBets=pending_bets
     )
 
 
@@ -135,7 +137,7 @@ def get_breakdown(
         result.append(schemas.BreakdownItem(
             key=key,
             pnl=round(data["pnl"], 2),
-            roi_pct=roi_pct,
+            roi=roi_pct,
             count=data["count"]
         ))
 

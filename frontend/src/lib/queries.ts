@@ -198,3 +198,52 @@ export async function createTag(tag: Omit<BetTag, 'id'>) {
   const { data } = await api.post('/api/v1/tags', tag);
   return data;
 }
+
+// Group queries
+export async function getGroups() {
+  const { data } = await api.get('/api/v1/groups');
+  return data;
+}
+
+export async function getGroup(groupId: string) {
+  const { data } = await api.get(`/api/v1/groups/${groupId}`);
+  return data;
+}
+
+export async function createGroup(name: string, description?: string) {
+  const { data } = await api.post('/api/v1/groups', { name, description });
+  return data;
+}
+
+export async function joinGroup(inviteCode: string) {
+  const { data } = await api.post('/api/v1/groups/join', { invite_code: inviteCode });
+  return data;
+}
+
+export async function leaveGroup(groupId: string) {
+  await api.delete(`/api/v1/groups/${groupId}`);
+}
+
+export async function getLeaderboard(groupId: string, month?: string) {
+  const params = month ? `?month=${month}` : '';
+  const { data } = await api.get(`/api/v1/groups/${groupId}/leaderboard${params}`);
+  return data;
+}
+
+// Calendar queries
+export async function prepareCalendarEvent(betId: string, provider?: 'google' | 'ics' | 'outlook') {
+  const { data } = await api.post('/api/v1/calendar/prepare', {
+    betId,
+    provider,
+  });
+  return data;
+}
+
+export function getICSDownloadUrl(betId: string): string {
+  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+  return `${apiBase}/api/v1/calendar/ics/${betId}`;
+}
+
+export async function removeCalendarEvent(betId: string) {
+  await api.delete(`/api/v1/calendar/${betId}`);
+}

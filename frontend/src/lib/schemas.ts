@@ -77,6 +77,11 @@ export const betSchema = z.object({
   closing_odds_american: z.number().int().nullable().optional(),
   notes: z.string().nullable().optional(),
   parlay_group_id: z.string().uuid().nullable().optional(),
+  calendar_provider: z.string().nullable().optional(),
+  calendar_event_id: z.string().nullable().optional(),
+  calendar_created_at: z.string().datetime().nullable().optional(),
+  calendar_timezone: z.string().nullable().optional(),
+  calendar_reminder_min: z.number().int().nullable().optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
 });

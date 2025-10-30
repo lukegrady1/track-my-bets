@@ -5,6 +5,7 @@ import { getBetById, settleBet, deleteBet } from '@/lib/queries';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import AddToCalendarButton from '@/components/calendar/AddToCalendarButton';
 
 export default function BetDetail() {
   const { id } = useParams<{ id: string }>();
@@ -182,14 +183,21 @@ export default function BetDetail() {
               </div>
             )}
 
-            <div className="border-t pt-4">
-              <Button
-                onClick={handleDelete}
-                variant="destructive"
-                size="sm"
-              >
-                Delete Bet
-              </Button>
+            <div className="border-t pt-4 space-y-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-3">Calendar</p>
+                <AddToCalendarButton bet={bet} onSuccess={refetch} />
+              </div>
+
+              <div>
+                <Button
+                  onClick={handleDelete}
+                  variant="destructive"
+                  size="sm"
+                >
+                  Delete Bet
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

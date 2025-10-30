@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchNflWeekSchedule, type ESPNEvent } from '@/lib/espn';
+import Layout from '@/components/layout/Layout';
 
 function getWeekParam(sp: URLSearchParams): number {
   const n = Number(sp.get('week'));
@@ -46,26 +47,28 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-4 space-y-4">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">NFL Schedule</h1>
-        <WeekPicker value={week} onChange={onWeekChange} />
-      </header>
+    <Layout>
+      <div className="space-y-4">
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">NFL Schedule</h1>
+          <WeekPicker value={week} onChange={onWeekChange} />
+        </header>
 
-      {isLoading && <p className="text-center py-8 text-gray-500">Loading schedule…</p>}
-      {isError && <p className="text-red-600 text-center py-8">Could not load schedule. Try another week.</p>}
+        {isLoading && <p className="text-center py-8 text-gray-500">Loading schedule…</p>}
+        {isError && <p className="text-red-600 text-center py-8">Could not load schedule. Try another week.</p>}
 
-      {data && data.length === 0 && <p className="text-center py-8 text-gray-500">No games found for week {week}.</p>}
+        {data && data.length === 0 && <p className="text-center py-8 text-gray-500">No games found for week {week}.</p>}
 
-      {data && groupByDate(data).map(([dateLabel, events]) => (
-        <section key={dateLabel}>
-          <h2 className="text-lg font-medium mt-6 mb-2">{dateLabel}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {events.map(ev => <GameCard key={ev.id} ev={ev} />)}
-          </div>
-        </section>
-      ))}
-    </div>
+        {data && groupByDate(data).map(([dateLabel, events]) => (
+          <section key={dateLabel}>
+            <h2 className="text-lg font-medium mt-6 mb-2">{dateLabel}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {events.map(ev => <GameCard key={ev.id} ev={ev} />)}
+            </div>
+          </section>
+        ))}
+      </div>
+    </Layout>
   );
 }
 

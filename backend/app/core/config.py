@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     JWT_REFRESH_EXPIRE_MIN: int = 43200  # 30 days
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173"
 
+    # LLM / AI
+    ANTHROPIC_API_KEY: str | None = None
+    THE_ODDS_API_KEY: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
